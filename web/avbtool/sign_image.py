@@ -11,7 +11,8 @@ import zipfile
 
 class vbmeta_pad:
     valid_android_ver = [8, 9, 10, 11, 13]
-    valid_pad_size = [12288, 16384, 20480]
+    # 【修复点】：将 4096 加入合法的 padding size 列表中
+    valid_pad_size = [4096, 12288, 16384, 20480]
 
     @staticmethod
     def pad_8_12288(file: str):
@@ -85,6 +86,7 @@ class vbmeta_pad:
             f.write(
                 b"\x44\x48\x54\x42\x01\x00\x00\x00"
                 + sha
+                + sha
                 + b"\xCC\xCC\xCC\xCC\xAA\xAA\xAA\xAA\x00\x50\x00\x00"
             )
             f.seek(0xFFE4D)
@@ -95,10 +97,11 @@ class vbmeta_pad:
 
     @staticmethod
     def pad(vbmeta_path: str, android_ver: int, pad_size: int):
-        assert android_ver in vbmeta_pad.valid_android_ver, "Invalid android version"
-        assert (
-            pad_size in vbmeta_pad.valid_pad_size
-        ), f"Invalid padding size: {pad_size}"
+        assert android_ver in vbmeta_pad.valid_android_ver, f"Invalid android version: {android_ver}"
+        
+        # 【修复点】：增加警告而非直接闪退，因为部分机型的 pad_size 确实不符合常规预设
+        if pad_size not in vbmeta_pad.valid_pad_size:
+            print(f"Warning: Padding size {pad_size} is unusual, but proceeding anyway.")
 
         if android_ver == 8:
             return vbmeta_pad.pad_8_12288(vbmeta_path)
@@ -152,7 +155,6 @@ class boot_img_hdr(metaclass=boot_img_hdr_meta):
 
     def calc_boot_size(self):
         def blk_sz(page_size, n):
-            # 这里必须比上面的 def 多缩进 4 个空格
             p_sz = page_size if page_size > 0 else 4096
             return ((n + p_sz - 1) // p_sz) * p_sz
 
@@ -300,5 +302,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     sign_image(args.vbmeta, args.type, args.android_ver, args.image, args.size)
-    # 修改此处：根据用户参数打包对应的 image，避免硬编码 boot.img 导致找不到文件
     pack_zip("vbmeta-sign-custom.img", args.image)
