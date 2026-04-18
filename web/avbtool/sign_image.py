@@ -13,6 +13,7 @@ class vbmeta_pad:
     valid_android_ver = [8, 9, 10, 11, 13]
     valid_pad_size = [12288, 16384, 20480]
 
+    @staticmethod
     def pad_8_12288(file: str):
         with open(file, "rb+") as f:
             b = f.read()
@@ -26,6 +27,7 @@ class vbmeta_pad:
             f.seek(512, SEEK_SET)
             f.write(b)
 
+    @staticmethod
     def pad_9_16384(file: str):
         with open(file, "rb+") as f:
             b = f.read()
@@ -40,6 +42,7 @@ class vbmeta_pad:
             )
             f.truncate(1048576)
 
+    @staticmethod
     def pad_10_20480(file: str):
         with open(file, "rb+") as f:
             b = f.read()
@@ -54,6 +57,7 @@ class vbmeta_pad:
             )
             f.truncate(1048576)
 
+    @staticmethod
     def pad_11_20480(file: str):
         with open(file, "rb+") as f:
             b = f.read()
@@ -70,6 +74,7 @@ class vbmeta_pad:
             f.write(b"\x50")
             f.truncate(1048576)
 
+    @staticmethod
     def pad_13_20480(file: str):
         with open(file, "rb+") as f:
             b = f.read()
@@ -88,6 +93,7 @@ class vbmeta_pad:
             f.write(b"\x60\x52")
             f.truncate(1048576)
 
+    @staticmethod
     def pad(vbmeta_path: str, android_ver: int, pad_size: int):
         assert android_ver in vbmeta_pad.valid_android_ver, "Invalid android version"
         assert (
@@ -98,11 +104,11 @@ class vbmeta_pad:
             return vbmeta_pad.pad_8_12288(vbmeta_path)
         elif android_ver == 9:
             return vbmeta_pad.pad_9_16384(vbmeta_path)
-        elif android_ver ==  10:
+        elif android_ver == 10:
             return vbmeta_pad.pad_10_20480(vbmeta_path)
         elif android_ver == 11:
             return vbmeta_pad.pad_11_20480(vbmeta_path)
-        elif android_ver ==  13:
+        elif android_ver == 13:
             return vbmeta_pad.pad_13_20480(vbmeta_path)
         else:
             raise Exception("Invalid android version")
@@ -144,8 +150,11 @@ class boot_img_hdr(metaclass=boot_img_hdr_meta):
     def __len__(self):
         return struct.calcsize(self.__structstr)
 
-    def calc_boot_size(self) -> int:
-        blk_sz = lambda page_size, n: ((n + page_size - 1) // page_size) * page_size
+    def calc_boot_size(self):
+        def blk_sz(page_size, n):
+            # 这里必须比上面的 def 多缩进 4 个空格
+            p_sz = page_size if page_size > 0 else 4096
+            return ((n + p_sz - 1) // p_sz) * p_sz
 
         size = (
             self.page_size
@@ -242,7 +251,7 @@ def pack_zip(vbmeta_image: str = "vbmeta-sign-custom.img", boot_image: str = "bo
     ) as z:
         z.write(boot_image)
         z.write(vbmeta_image)
-    print("Padked into SignedImages.zip")
+    print("Packed into SignedImages.zip")
 
 
 if __name__ == "__main__":
@@ -253,35 +262,35 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-v,--vbmeta",
+        "-v", "--vbmeta",
         default="vbmeta.img",
         type=str,
         dest="vbmeta",
         help="vbmeta image path",
     )
     parser.add_argument(
-        "-t,--type",
+        "-t", "--type",
         default="boot",
         type=str,
         dest="type",
-        help="only recived boot/recovery",
+        help="only received boot/recovery",
     )
     parser.add_argument(
-        "-a,--android_ver",
+        "-a", "--android_ver",
         default=8,
         type=int,
         dest="android_ver",
-        help="only recive 8,9,10,11,13",
+        help="only receive 8,9,10,11,13",
     )
     parser.add_argument(
-        "-i,--image",
+        "-i", "--image",
         default="boot.img",
         type=str,
         dest="image",
         help="image which will be signed. eg. like boot.img",
     )
     parser.add_argument(
-        "-s,--size",
+        "-s", "--size",
         default=36700160,
         type=int,
         dest="size",
@@ -291,4 +300,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     sign_image(args.vbmeta, args.type, args.android_ver, args.image, args.size)
-    pack_zip("vbmeta-sign-custom.img", "boot.img")
+    # 修改此处：根据用户参数打包对应的 image，避免硬编码 boot.img 导致找不到文件
+    pack_zip("vbmeta-sign-custom.img", args.image)
